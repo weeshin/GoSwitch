@@ -1,0 +1,21 @@
+fields:
+  2:
+    length: 19
+    description: "PAN"
+    type: "N"
+    format: "LLVAR"
+  3:
+    length: 6
+    description: "Processing Code"
+    type: "N"
+    format: "FIXED"
+  11:
+    length: 6
+    description: "STAN"
+    type: "N"
+    format: "FIXED"
+  41:
+    length: 8
+    description: "Terminal ID"
+    type: "ANS"
+    format: "FIXED"

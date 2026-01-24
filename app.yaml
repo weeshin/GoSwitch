@@ -1,0 +1,16 @@
+server:
+  port: 8081
+  ip: "0.0.0.0"
+  read_timeout: 30 # seconds
+
+# Future client channel configuration
+channels:
+  - name: "VISA_HOST"
+    ip: "10.1.1.5"
+    port: 9000
+    enabled: true
+    reconnect_interval: 5
+  - name: "ZOO_BANK"
+    ip: "192.168.1.50"
+    port: 7070
+    enabled: true

@@ -1,5 +1,60 @@
 package iso8583
 
+import (
+	"os"
+
+	"gopkg.in/yaml.v3"
+)
+
+// YAMLSpec matches the structure of your .yaml file
+type YAMLSpec struct {
+	Fields map[int]struct {
+		Length      int    `yaml:"length"`
+		Description string `yaml:"description"`
+		Type        string `yaml:"type"`
+		Format      string `yaml:"format"`
+	} `yaml:"fields"`
+}
+
+// LoadSpecFromFile reads a YAML file and returns a usable Spec
+func LoadSpecFromFile(path string) (Spec, error) {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return nil, err
+	}
+
+	var y YAMLSpec
+	if err := yaml.Unmarshal(data, &y); err != nil {
+		return nil, err
+	}
+
+	spec := make(Spec)
+	for id, f := range y.Fields {
+		var formatter Formatter
+
+		// Map string format names to our Interface implementations
+		switch f.Format {
+		case "FIXED":
+			formatter = &FixedFormatter{}
+		case "LLVAR":
+			formatter = &LLVarFormatter{}
+		case "LLLVAR":
+			formatter = &LLLVarFormatter{}
+		default:
+			formatter = &FixedFormatter{}
+		}
+
+		spec[id] = FieldSpec{
+			Length:      f.Length,
+			Description: f.Description,
+			Type:        f.Type,
+			Formatter:   formatter,
+		}
+	}
+
+	return spec, nil
+}
+
 // FieldSpec defines how a specific field should be packed/unpacked
 type FieldSpec struct {
 	Length      int // Max length for variable, exact length for fixed
