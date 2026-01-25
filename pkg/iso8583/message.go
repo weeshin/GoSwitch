@@ -120,12 +120,12 @@ func (m *Message) Pack(spec Spec) ([]byte, error) {
 
 func (m *Message) Unpack(data []byte, spec Spec) error {
 	// 1. Extract MTI (First 4 bytes)
-	if len(data) < 4 {
+	if len(data) < 2 {
 		return fmt.Errorf("data too short for MTI")
 	}
-	m.MTI = string(data[:4])
+	m.MTI = string(data[:2])
 	log.Printf("[DEBUG] Unpacking MTI: %s", m.MTI)
-	offset := 4
+	offset := 2
 
 	// 2. Extract Primary Bitmap (Next 8 bytes)
 	if len(data) < offset+8 {
@@ -138,9 +138,6 @@ func (m *Message) Unpack(data []byte, spec Spec) error {
 	hasSecondary := (primaryBitmap[0] & 0x80) != 0
 	fullBitmap := primaryBitmap
 	if hasSecondary {
-		if len(data) < offset+8 {
-			return fmt.Errorf("data too short for Secondary Bitmap")
-		}
 		fullBitmap = data[offset-8 : offset+8] // Capture 16 bytes
 		offset += 8
 	}

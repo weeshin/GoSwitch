@@ -2,35 +2,28 @@ fields:
   0: 
     length: 4
     description: "Message Type Indicator"
-    type: "N"
-    format: "FIXED"
+    encoder: "FANumeric"
   2:
     length: 19
     description: "PAN"
-    type: "N"
-    format: "LLVAR"
+    encoder: "FANumeric"
   3:
     length: 6
     description: "Processing Code"
-    type: "N"
-    format: "FIXED"
+    encoder: "FANumeric"
   4:
     length: 12
     description: "Amount, Transaction"
-    type: "N"
-    format: "FIXED"
+    encoder: "FANumeric"
   11:
     length: 6
     description: "STAN"
-    type: "N"
-    format: "FIXED"
+    encoder: "FANumeric"
   41:
     length: 8
     description: "Terminal ID"
-    type: "ANS"
-    format: "FIXED"
+    encoder: "FAAlphanumeric"
   49:
     length: 3
     description: "Currency Code, Transaction"
-    type: "N"
-    format: "FIXED"
+    encoder: "FANumeric"
