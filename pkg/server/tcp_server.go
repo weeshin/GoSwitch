@@ -3,8 +3,8 @@ package server
 import (
 	"GoSwitch/pkg/iso8583"
 	"encoding/binary"
-	"fmt"
 	"io"
+	"log"
 	"net"
 )
 
@@ -25,11 +25,12 @@ func (s *IsoServer) Start() error {
 	if err != nil {
 		return err
 	}
-	fmt.Printf("GoSwitch Server started on %s\n", s.Addr)
+	log.Printf("GoSwitch Server started on %s\n", s.Addr)
 
 	for {
 		conn, err := ln.Accept()
 		if err != nil {
+			log.Printf("Accept error: %v", err)
 			continue
 		}
 		go s.handle(conn)
@@ -38,11 +39,15 @@ func (s *IsoServer) Start() error {
 
 func (s *IsoServer) handle(conn net.Conn) {
 	defer conn.Close()
+	log.Printf("New connection from %s", conn.RemoteAddr())
 
 	for {
 		// 1. Read 2-byte length header
 		header := make([]byte, 2)
 		if _, err := io.ReadFull(conn, header); err != nil {
+			if err != io.EOF {
+				log.Printf("Client disconnected or error: %v", err)
+			}
 			return
 		}
 		msgLen := binary.BigEndian.Uint16(header)
@@ -50,16 +55,17 @@ func (s *IsoServer) handle(conn net.Conn) {
 		// 2. Read body
 		body := make([]byte, msgLen)
 		if _, err := io.ReadFull(conn, body); err != nil {
+			log.Printf("Read body error: %v", err)
 			return
 		}
 
 		// 3. Unpack using the core library
 		msg := iso8583.NewMessage()
 		if err := msg.Unpack(body, s.Spec); err != nil {
-			fmt.Printf("Unpack Error: %v\n", err)
+			log.Printf("Unpack Error: %v\n", err)
 			continue
 		}
 
-		fmt.Printf("Incoming: MTI %s, STAN %s\n", msg.MTI, string(msg.Fields[11].Value))
+		log.Printf("Incoming: MTI %s, STAN %s\n", msg.MTI, string(msg.Fields[11].Value))
 	}
 }

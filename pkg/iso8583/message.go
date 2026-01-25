@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/hex"
 	"fmt"
+	"log"
 )
 
 // Field represents a single ISO 8583 data element
@@ -81,6 +82,7 @@ func (m *Message) Pack(spec Spec) ([]byte, error) {
 	var buf bytes.Buffer
 
 	// 1. Write MTI (e.g., "0200")
+	log.Printf("[DEBUG] Packing MTI: %s", m.MTI)
 	buf.WriteString(m.MTI)
 
 	// 2. Generate and Write Bitmap
@@ -88,6 +90,7 @@ func (m *Message) Pack(spec Spec) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
+	log.Printf("[DEBUG] Generated Bitmap: %x", bitmap)
 	buf.Write(bitmap)
 
 	// 3. Loop through fields 2 to 128
@@ -108,6 +111,7 @@ func (m *Message) Pack(spec Spec) ([]byte, error) {
 			return nil, fmt.Errorf("error formatting field %d: %v", i, err)
 		}
 
+		log.Printf("[DEBUG] Packing Field %d: %s", i, formatVal)
 		buf.Write(formatVal)
 	}
 
@@ -120,6 +124,7 @@ func (m *Message) Unpack(data []byte, spec Spec) error {
 		return fmt.Errorf("data too short for MTI")
 	}
 	m.MTI = string(data[:4])
+	log.Printf("[DEBUG] Unpacking MTI: %s", m.MTI)
 	offset := 4
 
 	// 2. Extract Primary Bitmap (Next 8 bytes)
@@ -133,9 +138,13 @@ func (m *Message) Unpack(data []byte, spec Spec) error {
 	hasSecondary := (primaryBitmap[0] & 0x80) != 0
 	fullBitmap := primaryBitmap
 	if hasSecondary {
+		if len(data) < offset+8 {
+			return fmt.Errorf("data too short for Secondary Bitmap")
+		}
 		fullBitmap = data[offset-8 : offset+8] // Capture 16 bytes
 		offset += 8
 	}
+	log.Printf("[DEBUG] Unpacked Bitmap: %x", fullBitmap)
 
 	// 3. Extract Fields based on Bitmap
 	// We start from Field 2 (Bit 1 is the secondary bitmap flag)
@@ -156,6 +165,7 @@ func (m *Message) Unpack(data []byte, spec Spec) error {
 			if err != nil {
 				return fmt.Errorf("error parsing field %d: %v", i, err)
 			}
+			log.Printf("[DEBUG] Unpacked Field %d: %s", i, string(fieldVal))
 			offset += readLen
 
 			m.Fields[i] = &Field{Value: fieldVal}

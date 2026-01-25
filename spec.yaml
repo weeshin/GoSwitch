@@ -1,4 +1,9 @@
 fields:
+  0: 
+    length: 4
+    description: "Message Type Indicator"
+    type: "N"
+    format: "FIXED"
   2:
     length: 19
     description: "PAN"
@@ -7,6 +12,11 @@ fields:
   3:
     length: 6
     description: "Processing Code"
+    type: "N"
+    format: "FIXED"
+  4:
+    length: 12
+    description: "Amount, Transaction"
     type: "N"
     format: "FIXED"
   11:
@@ -18,4 +28,9 @@ fields:
     length: 8
     description: "Terminal ID"
     type: "ANS"
+    format: "FIXED"
+  49:
+    length: 3
+    description: "Currency Code, Transaction"
+    type: "N"
     format: "FIXED"
