@@ -8,7 +8,7 @@ import (
 type Context struct {
 	Request *Message
 	Conn    net.Conn
-	Spec    Spec
+	Spec    *Spec
 }
 
 // Respond packs the message and sends it back with the 2-byte length header

@@ -12,12 +12,12 @@ import (
 
 type IsoClient struct {
 	Config           config.ChannelConfig
-	Spec             iso8583.Spec
+	Spec             *iso8583.Spec
 	conn             net.Conn
 	pendingResponses sync.Map // Map[string]chan *iso8583.Message
 }
 
-func New(cfg config.ChannelConfig, spec iso8583.Spec) *IsoClient {
+func New(cfg config.ChannelConfig, spec *iso8583.Spec) *IsoClient {
 	return &IsoClient{
 		Config: cfg,
 		Spec:   spec,

@@ -12,12 +12,12 @@ type HandleFunc func(*iso8583.Context)
 
 type Engine struct {
 	Addr           string
-	Spec           iso8583.Spec
+	Spec           *iso8583.Spec
 	Channel        Channel
 	requestHandler HandleFunc
 }
 
-func NewEngine(addr string, spec iso8583.Spec, channel Channel) *Engine {
+func NewEngine(addr string, spec *iso8583.Spec, channel Channel) *Engine {
 	return &Engine{
 		Addr:    addr,
 		Spec:    spec,

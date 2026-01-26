@@ -2,7 +2,6 @@ package iso8583
 
 import (
 	"bytes"
-	"encoding/hex"
 	"fmt"
 	"log"
 )
@@ -15,6 +14,7 @@ type Field struct {
 // Message is the main ISO 8583 container
 type Message struct {
 	MTI    string
+	Bitmap []byte
 	Fields map[int]*Field
 }
 
@@ -29,8 +29,8 @@ func (m *Message) Set(fieldNum int, value string) {
 	m.Fields[fieldNum] = &Field{Value: []byte(value)}
 }
 
-// GenerateBitmap constructs the binary bitmap (8 or 16 bytes)
-func (m *Message) GenerateBitmap() ([]byte, error) {
+// GenerateBitmapHex constructs the binary bitmap (8 or 16 bytes)
+func (m *Message) GenerateBitmapHex() ([]byte, error) {
 	maxField := 0
 	for fieldNum := range m.Fields {
 		if fieldNum > maxField {
@@ -69,103 +69,92 @@ func (m *Message) GenerateBitmap() ([]byte, error) {
 	return bitmap, nil
 }
 
-// BitmapHex returns the bitmap as a Hexadecimal string (e.g., "4210001100000000")
-func (m *Message) BitmapHex() (string, error) {
-	b, err := m.GenerateBitmap()
-	if err != nil {
-		return "", err
-	}
-	return hex.EncodeToString(b), nil
-}
-
-func (m *Message) Pack(spec Spec) ([]byte, error) {
+func (m *Message) Pack(spec *Spec) ([]byte, error) {
 	var buf bytes.Buffer
 
-	// 1. Write MTI (e.g., "0200")
-	log.Printf("[DEBUG] Packing MTI: %s", m.MTI)
-	buf.WriteString(m.MTI)
-
-	// 2. Generate and Write Bitmap
-	bitmap, err := m.GenerateBitmap()
+	// 1. Pack MTI
+	// We use the encoder defined in the spec to handle ASCII/Binary MTI
+	mtiBytes, err := spec.MTIEncoder.Pack(m.MTI, 4)
 	if err != nil {
 		return nil, err
 	}
-	log.Printf("[DEBUG] Generated Bitmap: %x", bitmap)
-	buf.Write(bitmap)
+	buf.Write(mtiBytes)
 
-	// 3. Loop through fields 2 to 128
-	for i := 2; i <= 128; i++ {
-		field, exists := m.Fields[i]
-		if !exists {
-			continue
-		}
-
-		fieldSpec, defined := spec[i]
-		if !defined {
-			return nil, fmt.Errorf("field %d present in message but not in spec", i)
-		}
-
-		// Use the Formatter from the Spec to format the field
-		formatVal, err := fieldSpec.Formatter.Format(string(field.Value), fieldSpec.Length)
-		if err != nil {
-			return nil, fmt.Errorf("error formatting field %d: %v", i, err)
-		}
-
-		log.Printf("[DEBUG] Packing Field %d: %s", i, formatVal)
-		buf.Write(formatVal)
+	// 2. Pack Bitmap - No more manual bit manipulation here!
+	presentFields := make(map[int]bool)
+	for k := range m.Fields {
+		presentFields[k] = true
 	}
 
+	bitmapB, err := spec.BitmapEncoder.Pack(presentFields)
+	if err != nil {
+		return nil, err
+	}
+	buf.Write(bitmapB)
+
+	// 3. Pack Fields
+	// We loop based on the Spec to ensure we only pack what's allowed
+	for i := 2; i <= 128; i++ {
+		if fData, ok := m.Fields[i]; ok {
+			fSpec, ok := spec.Fields[i]
+			if !ok {
+				return nil, fmt.Errorf("field %d present in message but not in spec", i)
+			}
+			packed, err := fSpec.Encoder.Pack(string(fData.Value), fSpec.Length)
+			if err != nil {
+				return nil, err
+			}
+			buf.Write(packed)
+		}
+	}
 	return buf.Bytes(), nil
 }
 
-func (m *Message) Unpack(data []byte, spec Spec) error {
-	// 1. Extract MTI (First 4 bytes)
-	if len(data) < 2 {
-		return fmt.Errorf("data too short for MTI")
+func (m *Message) Unpack(data []byte, spec *Spec) error {
+	offset := 0
+
+	// 1. Unpack MTI
+	mti, readLen, err := spec.MTIEncoder.Unpack(data[offset:], 4)
+	if err != nil {
+		return err
 	}
-	m.MTI = string(data[:2])
-	log.Printf("[DEBUG] Unpacking MTI: %s", m.MTI)
-	offset := 2
+	m.MTI = mti
+	offset += readLen
+	log.Printf("[DEBUG] Unpacked MTI: %s", m.MTI)
 
-	// 2. Extract Primary Bitmap (Next 8 bytes)
-	if len(data) < offset+8 {
-		return fmt.Errorf("data too short for Bitmap")
+	// 2. Unpack Bitmap using the specialized BitMap interface
+	// This now returns a map[int]bool directly!
+	presentFields, readLen, err := spec.BitmapEncoder.Unpack(data[offset:])
+	if err != nil {
+		return err
 	}
-	primaryBitmap := data[offset : offset+8]
-	offset += 8
+	// Store raw bytes for historical/debug purposes
+	m.Bitmap = data[offset : offset+readLen]
+	offset += readLen
 
-	// Check for Secondary Bitmap (Bit 1 of Primary)
-	hasSecondary := (primaryBitmap[0] & 0x80) != 0
-	fullBitmap := primaryBitmap
-	if hasSecondary {
-		fullBitmap = data[offset-8 : offset+8] // Capture 16 bytes
-		offset += 8
-	}
-	log.Printf("[DEBUG] Unpacked Bitmap: %x", fullBitmap)
+	log.Printf("[DEBUG] Unpacked Bitmap fields: %v", presentFields)
 
-	// 3. Extract Fields based on Bitmap
-	// We start from Field 2 (Bit 1 is the secondary bitmap flag)
-	for i := 2; i <= (len(fullBitmap) * 8); i++ {
-		byteIdx := (i - 1) / 8
-		bitIdx := uint(7 - ((i - 1) % 8))
-
-		// Check if bit is set
-		if (fullBitmap[byteIdx] & (1 << bitIdx)) != 0 {
-			fSpec, defined := spec[i]
+	// 3. Extract Fields based on the map returned by the encoder
+	// We loop from field 2 up to 128
+	for i := 2; i <= 128; i++ {
+		// Only unpack if the bitmap says the field is present
+		if presentFields[i] {
+			fSpec, defined := spec.Fields[i]
 			if !defined {
 				return fmt.Errorf("field %d found in bitmap but not in spec", i)
 			}
 
-			var fieldVal []byte
-
-			fieldVal, readLen, err := fSpec.Formatter.Parse(data[offset:], fSpec.Length)
+			// Unpack the data field
+			val, readLen, err := fSpec.Encoder.Unpack(data[offset:], fSpec.Length)
 			if err != nil {
-				return fmt.Errorf("error parsing field %d: %v", i, err)
+				return fmt.Errorf("error unpacking field %d: %v", i, err)
 			}
-			log.Printf("[DEBUG] Unpacked Field %d: %s", i, string(fieldVal))
-			offset += readLen
 
-			m.Fields[i] = &Field{Value: fieldVal}
+			log.Printf("[DEBUG] Unpacked Field %d: %s", i, val)
+
+			// Store the value in the message
+			m.Fields[i] = &Field{Value: []byte(val)}
+			offset += readLen
 		}
 	}
 

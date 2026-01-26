@@ -23,11 +23,15 @@ type FieldSpec struct {
 	Encoder     field.ISOField
 }
 
-// Spec is a map of field numbers to their definitions
-type Spec map[int]FieldSpec
+// Spec defines the configuration for the ISO8583 message
+type Spec struct {
+	MTIEncoder    field.ISOField
+	BitmapEncoder field.BitMap
+	Fields        map[int]FieldSpec
+}
 
 // LoadSpecFromFile reads a YAML file and returns a usable Spec
-func LoadSpecFromFile(path string) (Spec, error) {
+func LoadSpecFromFile(path string) (*Spec, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return nil, err
@@ -38,7 +42,12 @@ func LoadSpecFromFile(path string) (Spec, error) {
 		return nil, err
 	}
 
-	spec := make(Spec)
+	spec := &Spec{
+		Fields:        make(map[int]FieldSpec),
+		MTIEncoder:    &field.FANumeric{},
+		BitmapEncoder: &field.FBBitmap{},
+	}
+
 	for id, f := range y.Fields {
 		var encoder field.ISOField
 
@@ -52,7 +61,7 @@ func LoadSpecFromFile(path string) (Spec, error) {
 			encoder = &field.FANumeric{}
 		}
 
-		spec[id] = FieldSpec{
+		spec.Fields[id] = FieldSpec{
 			Length:      f.Length,
 			Description: f.Description,
 			Encoder:     encoder,
@@ -60,14 +69,4 @@ func LoadSpecFromFile(path string) (Spec, error) {
 	}
 
 	return spec, nil
-}
-
-// GetDefaultSpec provides a hardcoded fallback using the new field package
-func GetDefaultSpec() Spec {
-	return Spec{
-		2:  {Length: 19, Description: "PAN", Encoder: &field.FANumeric{}}, // Assuming ASCII for default
-		3:  {Length: 6, Description: "Proc Code", Encoder: &field.FANumeric{}},
-		11: {Length: 6, Description: "STAN", Encoder: &field.FBNumeric{}}, // Example of Binary
-		70: {Length: 3, Description: "Net Code", Encoder: &field.FANumeric{}},
-	}
 }
