@@ -2,6 +2,7 @@ package main
 
 import (
 	"GoSwitch/pkg/config"
+	"GoSwitch/pkg/field"
 	"GoSwitch/pkg/iso8583"
 	"GoSwitch/pkg/server"
 	"fmt"
@@ -15,7 +16,49 @@ func main() {
 		log.Fatalf("Error loading app.yaml: %v", err)
 	}
 
-	spec, _ := iso8583.LoadSpecFromFile("spec.yaml")
+	// spec, _ := iso8583.LoadSpecFromFile("spec.yaml")
+
+	spec := &iso8583.Spec{
+		MTIEncoder:    &field.FBNumeric{},
+		BitmapEncoder: &field.FBBitmap{},
+	}
+	spec.Fields = map[int]iso8583.FieldSpec{
+		2: {
+			Length:      16,
+			Description: "Primary Account Number",
+			Encoder:     &field.FBLLNumeric{},
+		},
+		3: {
+			Length:      6,
+			Description: "Processing Code",
+			Encoder:     &field.FBNumeric{},
+		},
+		4: {
+			Length:      12,
+			Description: "Amount, Transaction",
+			Encoder:     &field.FBNumeric{},
+		},
+		11: {
+			Length:      6,
+			Description: "Systems Trace Audit Number",
+			Encoder:     &field.FBNumeric{},
+		},
+		39: {
+			Length:      2,
+			Description: "Response Code",
+			Encoder:     &field.FBNumeric{},
+		},
+		41: {
+			Length:      8,
+			Description: "Card Acceptor Terminal Identification",
+			Encoder:     &field.FChar{},
+		},
+		49: {
+			Length:      3,
+			Description: "Currency Code, Transaction",
+			Encoder:     &field.FChar{},
+		},
+	}
 
 	addr := fmt.Sprintf("%s:%d", appCfg.Server.IP, appCfg.Server.Port)
 	app := server.NewEngine(addr, spec, &server.NACChannel{})
