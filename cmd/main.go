@@ -364,14 +364,19 @@ func handleEcho(c *iso8583.Context) {
 func handlePurchase(c *iso8583.Context) {
 	// Implement your database or authorization logic here
 	fmt.Println("Processing Purchase...")
-	resp := iso8583.NewMessage()
-	resp.MTI = "0210"
-	if stan, ok := c.Request.Fields[11]; ok {
-		resp.Set(11, string(stan.Value))
-	}
-	if tid, ok := c.Request.Fields[41]; ok {
-		resp.Set(41, string(tid.Value))
-	}
-	resp.Set(39, "00") // Action Code: Approved
+	// resp := iso8583.NewMessage()
+	// resp.MTI = "0210"
+	// if stan, ok := c.Request.Fields[11]; ok {
+	// 	resp.Set(11, string(stan.Value))
+	// }
+	// if tid, ok := c.Request.Fields[41]; ok {
+	// 	resp.Set(41, string(tid.Value))
+	// }
+	// resp.Set(39, "00") // Action Code: Approved
+	// c.Respond(resp)
+
+	c.Request.ResponseMTI()
+	resp := c.Request
+	resp.Set(39, "00")
 	c.Respond(resp)
 }
