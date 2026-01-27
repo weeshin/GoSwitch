@@ -53,7 +53,6 @@ func (e *Engine) serve(conn net.Conn) {
 	for {
 		// 1. Read Length using the selected Channel strategy
 		msgLen, err := e.Channel.ReadLength(conn)
-		slog.Info("Message Length", "length", msgLen)
 		if err != nil {
 			if err != io.EOF {
 				slog.Error("Read error (length)", "error", err)
@@ -71,7 +70,7 @@ func (e *Engine) serve(conn net.Conn) {
 			slog.Error("Read error (body)", "error", err)
 			return
 		}
-		slog.Info("Body", "hex", hex.EncodeToString(body))
+		slog.Debug("Raw", "hex", hex.EncodeToString(body))
 
 		msg := iso8583.NewMessage()
 		if err := msg.Unpack(body, e.Spec); err != nil {
