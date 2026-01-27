@@ -138,6 +138,36 @@ func main() {
 			Description: "Amount, Transaction Fee",
 			Encoder:     &field.FBNumeric{},
 		},
+		29: {
+			Length:      9,
+			Description: "Amount, Settlement Fee",
+			Encoder:     &field.FBNumeric{},
+		},
+		30: {
+			Length:      9,
+			Description: "Amount, Transaction Processing Fee",
+			Encoder:     &field.FBNumeric{},
+		},
+		31: {
+			Length:      9,
+			Description: "Amount, Settlement Processing Fee",
+			Encoder:     &field.FBNumeric{},
+		},
+		32: {
+			Length:      11,
+			Description: "Acquiring Institution Identification Code",
+			Encoder:     &field.FBLLNumeric{},
+		},
+		33: {
+			Length:      11,
+			Description: "Forwarding Institution Identification Code",
+			Encoder:     &field.FBLLNumeric{},
+		},
+		34: {
+			Length:      28,
+			Description: "Primary Account Number, Extended",
+			Encoder:     &field.FBLLChar{},
+		},
 		35: {
 			Length:      37,
 			Description: "Track 2 Data",
