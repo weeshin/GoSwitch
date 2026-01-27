@@ -3,7 +3,7 @@ package iso8583
 import (
 	"bytes"
 	"fmt"
-	"log"
+	"log/slog"
 )
 
 // Field represents a single ISO 8583 data element
@@ -120,7 +120,7 @@ func (m *Message) Unpack(data []byte, spec *Spec) error {
 	}
 	m.MTI = mti
 	offset += readLen
-	log.Printf("[DEBUG] Unpacked MTI: %s", m.MTI)
+	slog.Debug("Unpacked MTI", "mti", m.MTI)
 
 	// 2. Unpack Bitmap using the specialized BitMap interface
 	// This now returns a map[int]bool directly!
@@ -132,7 +132,7 @@ func (m *Message) Unpack(data []byte, spec *Spec) error {
 	m.Bitmap = data[offset : offset+readLen]
 	offset += readLen
 
-	log.Printf("[DEBUG] Unpacked Bitmap fields: %v", presentFields)
+	slog.Debug("Unpacked Bitmap fields", "fields", presentFields)
 
 	// 3. Extract Fields based on the map returned by the encoder
 	// We loop from field 2 up to 128
@@ -150,7 +150,7 @@ func (m *Message) Unpack(data []byte, spec *Spec) error {
 				return fmt.Errorf("error unpacking field %d: %v", i, err)
 			}
 
-			log.Printf("[DEBUG] Unpacked Field %d: %s", i, val)
+			slog.Debug("Unpacked Field", "field", i, "value", val)
 
 			// Store the value in the message
 			m.Fields[i] = &Field{Value: []byte(val)}

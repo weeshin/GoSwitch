@@ -4,7 +4,7 @@ import (
 	"GoSwitch/pkg/iso8583"
 	"encoding/hex"
 	"io"
-	"log"
+	"log/slog"
 	"net"
 )
 
@@ -34,12 +34,12 @@ func (e *Engine) Start() error {
 	if err != nil {
 		return err
 	}
-	log.Printf("GoSwitch Framework listening on %s\n", e.Addr)
+	slog.Info("GoSwitch Framework listening", "addr", e.Addr)
 
 	for {
 		conn, err := ln.Accept()
 		if err != nil {
-			log.Printf("Accept error: %v", err)
+			slog.Error("Accept error", "error", err)
 			continue
 		}
 		go e.serve(conn)
@@ -48,15 +48,15 @@ func (e *Engine) Start() error {
 
 func (e *Engine) serve(conn net.Conn) {
 	defer conn.Close()
-	log.Printf("New connection from %s", conn.RemoteAddr())
+	slog.Info("New connection", "remote_addr", conn.RemoteAddr())
 
 	for {
 		// 1. Read Length using the selected Channel strategy
 		msgLen, err := e.Channel.ReadLength(conn)
-		log.Printf("Message Length: %d", msgLen)
+		slog.Info("Message Length", "length", msgLen)
 		if err != nil {
 			if err != io.EOF {
-				log.Printf("Read error (length): %v", err)
+				slog.Error("Read error (length)", "error", err)
 			}
 			return
 		}
@@ -68,14 +68,14 @@ func (e *Engine) serve(conn net.Conn) {
 
 		body := make([]byte, msgLen)
 		if _, err := io.ReadFull(conn, body); err != nil {
-			log.Printf("Read error (body): %v", err)
+			slog.Error("Read error (body)", "error", err)
 			return
 		}
-		log.Printf("Body : %v", hex.EncodeToString(body))
+		slog.Info("Body", "hex", hex.EncodeToString(body))
 
 		msg := iso8583.NewMessage()
 		if err := msg.Unpack(body, e.Spec); err != nil {
-			log.Printf("Unpack Error: %v\n", err)
+			slog.Error("Unpack Error", "error", err)
 			continue
 		}
 
