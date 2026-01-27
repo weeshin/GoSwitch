@@ -29,6 +29,11 @@ func (m *Message) Set(fieldNum int, value string) {
 	m.Fields[fieldNum] = &Field{Value: []byte(value)}
 }
 
+// Unset removes a field from the message
+func (m *Message) Unset(fieldNum int) {
+	delete(m.Fields, fieldNum)
+}
+
 // GenerateBitmapHex constructs the binary bitmap (8 or 16 bytes)
 func (m *Message) GenerateBitmapHex() ([]byte, error) {
 	maxField := 0
