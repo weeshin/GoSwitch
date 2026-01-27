@@ -51,29 +51,17 @@ func (e *Engine) serve(conn net.Conn) {
 	slog.Info("New connection", "remote_addr", conn.RemoteAddr())
 
 	for {
-		// 1. Read Length using the selected Channel strategy
-		msgLen, err := e.Channel.ReadLength(conn)
+		rawData, err := e.Channel.Receive(conn)
 		if err != nil {
 			if err != io.EOF {
-				slog.Error("Read error (length)", "error", err)
+				slog.Error("read error", "err", err)
 			}
-			return
+			break
 		}
-
-		// header := make([]byte, 2)
-		// if _, err := io.ReadFull(conn, header); err != nil {
-		// 	return
-		// }
-
-		body := make([]byte, msgLen)
-		if _, err := io.ReadFull(conn, body); err != nil {
-			slog.Error("Read error (body)", "error", err)
-			return
-		}
-		slog.Debug("Raw", "hex", hex.EncodeToString(body))
+		slog.Info("Raw", "hex", hex.EncodeToString(rawData))
 
 		msg := iso8583.NewMessage()
-		if err := msg.Unpack(body, e.Spec); err != nil {
+		if err := msg.Unpack(rawData, e.Spec); err != nil {
 			slog.Error("Unpack Error", "error", err)
 			continue
 		}
