@@ -34,6 +34,27 @@ func (m *Message) Unset(fieldNum int) {
 	delete(m.Fields, fieldNum)
 }
 
+// ResponseMTI updates the message MTI to its response equivalent (e.g., 0200 -> 0210)
+func (m *Message) ResponseMTI() error {
+	if len(m.MTI) != 4 {
+		return fmt.Errorf("MTI must be 4 characters long")
+	}
+
+	mti := []byte(m.MTI)
+	switch mti[2] {
+	case '0':
+		mti[2] = '1'
+	case '2':
+		mti[2] = '3'
+	case '4':
+		mti[2] = '5'
+	default:
+		return fmt.Errorf("cannot convert MTI %s to response", m.MTI)
+	}
+	m.MTI = string(mti)
+	return nil
+}
+
 // GenerateBitmapHex constructs the binary bitmap (8 or 16 bytes)
 func (m *Message) GenerateBitmapHex() ([]byte, error) {
 	maxField := 0
