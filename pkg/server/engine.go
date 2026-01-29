@@ -2,13 +2,12 @@ package server
 
 import (
 	"GoSwitch/pkg/iso8583"
-	"encoding/hex"
 	"io"
 	"log/slog"
 	"net"
 )
 
-type HandleFunc func(*iso8583.Context)
+type HandleFunc func(*Context)
 
 type Engine struct {
 	Addr           string
@@ -51,31 +50,33 @@ func (e *Engine) serve(conn net.Conn) {
 	slog.Info("New connection", "remote_addr", conn.RemoteAddr())
 
 	for {
-		rawData, err := e.Channel.Receive(conn)
+		msg, err := e.Channel.Receive(conn)
 		if err != nil {
 			if err != io.EOF {
 				slog.Error("read error", "err", err)
 			}
 			break
 		}
-		slog.Info("Raw", "hex", hex.EncodeToString(rawData))
-
-		msg := iso8583.NewMessage()
-		if err := msg.Unpack(rawData, e.Spec); err != nil {
-			slog.Error("Unpack Error", "error", err)
-			continue
-		}
+		slog.Info("Received message", "MTI", msg.MTI, "fields", len(msg.Fields))
 
 		// Create Context
-		ctx := &iso8583.Context{
+		ctx := &Context{
 			Request: msg,
 			Conn:    conn,
+			Channel: e.Channel,
 			Spec:    e.Spec,
 		}
 
 		// Execute User Logic
 		if e.requestHandler != nil {
-			e.requestHandler(ctx)
+			go func(c *Context) {
+				defer func() {
+					if r := recover(); r != nil {
+						slog.Error("Panic in request handler", "reason", r)
+					}
+				}()
+				e.requestHandler(c)
+			}(ctx)
 		}
 	}
 }
