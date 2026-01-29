@@ -13,6 +13,7 @@ type Field struct {
 
 // Message is the main ISO 8583 container
 type Message struct {
+	Header []byte
 	MTI    string
 	Bitmap []byte
 	Fields map[int]*Field
@@ -32,6 +33,15 @@ func (m *Message) Set(fieldNum int, value string) {
 // Unset removes a field from the message
 func (m *Message) Unset(fieldNum int) {
 	delete(m.Fields, fieldNum)
+}
+
+// SetHeader sets the ISO header
+func (m *Message) SetHeader(header []byte) {
+	m.Header = header
+}
+
+func (m *Message) GetHeader() []byte {
+	return m.Header
 }
 
 // ResponseMTI updates the message MTI to its response equivalent (e.g., 0200 -> 0210)
