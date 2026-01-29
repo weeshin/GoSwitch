@@ -6,6 +6,15 @@ import (
 	"net"
 )
 
+type Channel interface {
+	ReadLength(r io.Reader) (int, error)
+	WriteLength(w io.Writer, length int) error
+	// Receive reads the length and then the full message body
+	Receive(r io.Reader) (*iso8583.Message, error)
+	// Send writes the length header and then the message body
+	Send(w io.Writer, msg *iso8583.Message) error
+}
+
 type LengthHandler interface {
 	ReadLength(r io.Reader) (int, error)
 	WriteLength(w io.Writer, length int) error
