@@ -7,6 +7,7 @@ import (
 	"GoSwitch/pkg/server"
 	"fmt"
 	"log"
+	"time"
 )
 
 func main() {
@@ -320,10 +321,22 @@ func main() {
 		},
 	}
 	addr := fmt.Sprintf("%s:%d", appCfg.Server.IP, appCfg.Server.Port)
-	app := server.NewEngine(addr, spec, &server.NACChannel{})
+	// Example TPDU for a specific bank: 60 00 01 00 00
+	bankTPDU := []byte{0x60, 0x00, 0x01, 0x00, 0x00}
+
+	// Create NAC Channel with specific TPDU and Handler
+	nacChannel := &server.NACChannel{
+		BaseChannel: &server.BaseChannel{
+			Spec:    spec,
+			Header:  bankTPDU,
+			Handler: &server.NACHeader{},
+		},
+	}
+
+	app := server.NewEngine(addr, spec, nacChannel)
 
 	// 3. Define your Logic (The app.Request handler)
-	app.Request(func(c *iso8583.Context) {
+	app.Request(func(c *server.Context) {
 		// Define the combination key: MTI + Field 3
 		mti := c.Request.MTI
 		procCode := ""
@@ -350,7 +363,7 @@ func main() {
 }
 
 // Logic for Echo
-func handleEcho(c *iso8583.Context) {
+func handleEcho(c *server.Context) {
 	resp := iso8583.NewMessage()
 	resp.MTI = "0810"
 	// Copy the STAN (Field 11) from request to response
@@ -358,25 +371,16 @@ func handleEcho(c *iso8583.Context) {
 		resp.Set(11, string(stan.Value))
 	}
 	resp.Set(39, "00") // Action Code: Approved
-	c.Respond(resp)
+	c.Channel.Send(c.Conn, resp)
 }
 
-func handlePurchase(c *iso8583.Context) {
+func handlePurchase(c *server.Context) {
 	// Implement your database or authorization logic here
 	fmt.Println("Processing Purchase...")
-	// resp := iso8583.NewMessage()
-	// resp.MTI = "0210"
-	// if stan, ok := c.Request.Fields[11]; ok {
-	// 	resp.Set(11, string(stan.Value))
-	// }
-	// if tid, ok := c.Request.Fields[41]; ok {
-	// 	resp.Set(41, string(tid.Value))
-	// }
-	// resp.Set(39, "00") // Action Code: Approved
-	// c.Respond(resp)
 
 	c.Request.ResponseMTI()
 	resp := c.Request
 	resp.Set(39, "00")
-	c.Respond(resp)
+	time.Sleep(1 * time.Second)
+	c.Channel.Send(c.Conn, resp)
 }
