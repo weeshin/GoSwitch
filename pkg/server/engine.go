@@ -60,12 +60,7 @@ func (e *Engine) serve(conn net.Conn) {
 		slog.Info("Received message", "MTI", msg.MTI, "fields", len(msg.Fields))
 
 		// Create Context
-		ctx := &Context{
-			Request: msg,
-			Conn:    conn,
-			Channel: e.Channel,
-			Spec:    e.Spec,
-		}
+		ctx := NewContext(conn, msg, e.Channel, e.Spec)
 
 		// Execute User Logic
 		if e.requestHandler != nil {

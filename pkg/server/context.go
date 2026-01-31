@@ -7,14 +7,21 @@ import (
 
 type Context struct {
 	Request *iso8583.Message
-	Conn    net.Conn
+	conn    net.Conn
 	Channel Channel
 	Spec    *iso8583.Spec
 }
 
-// Respond packs the message and sends it back with the 2-byte length header
-// func (c *Context) Respond(m *iso8583.Message) error {
-// 	// Implementation relying on manual packing.
-// 	// Ideally usage of Channel.Send() is preferred if available.
-// 	return nil
-// }
+func NewContext(conn net.Conn, request *iso8583.Message, channel Channel, spec *iso8583.Spec) *Context {
+	return &Context{
+		Request: request,
+		conn:    conn,
+		Channel: channel,
+		Spec:    spec,
+	}
+}
+
+// Send packs the message and sends it back using the configured channel
+func (c *Context) Send(msg *iso8583.Message) error {
+	return c.Channel.Send(c.conn, msg)
+}
