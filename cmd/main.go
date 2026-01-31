@@ -371,7 +371,7 @@ func handleEcho(c *server.Context) {
 		resp.Set(11, string(stan.Value))
 	}
 	resp.Set(39, "00") // Action Code: Approved
-	c.Channel.Send(c.Conn, resp)
+	c.Send(resp)
 }
 
 func handlePurchase(c *server.Context) {
@@ -382,5 +382,5 @@ func handlePurchase(c *server.Context) {
 	resp := c.Request
 	resp.Set(39, "00")
 	time.Sleep(1 * time.Second)
-	c.Channel.Send(c.Conn, resp)
+	c.Send(resp)
 }
