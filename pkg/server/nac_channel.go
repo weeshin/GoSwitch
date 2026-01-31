@@ -121,6 +121,10 @@ func (n *NACChannel) Send(w io.Writer, msg *iso8583.Message) error {
 	lenHeader := make([]byte, 2)
 	binary.BigEndian.PutUint16(lenHeader, uint16(len(finalPayload)))
 
+	// if _, err := w.Write(lenHeader); err != nil {
+	// 	return err
+	// }
+	// _, err = w.Write(finalPayload)
 	if _, err := w.Write(lenHeader); err != nil {
 		return err
 	}
