@@ -12,7 +12,9 @@ type Channel interface {
 	// Receive reads the length and then the full message body
 	Receive(r io.Reader) (*iso8583.Message, error)
 	// Send writes the length header and then the message body
-	Send(w io.Writer, msg *iso8583.Message) error
+	Send(msg *iso8583.Message) error
+	// Clone creates a new Channel instance with the given connection
+	Clone(conn net.Conn) Channel
 }
 
 type LengthHandler interface {
@@ -32,6 +34,14 @@ func NewBaseChannel(conn net.Conn, spec *iso8583.Spec) *BaseChannel {
 		Conn: conn,
 		Spec: spec,
 	}
+}
+
+func (b *BaseChannel) ReadLength(r io.Reader) (int, error) {
+	return b.Handler.ReadLength(r)
+}
+
+func (b *BaseChannel) WriteLength(w io.Writer, length int) error {
+	return b.Handler.WriteLength(w, length)
 }
 
 func (b *BaseChannel) Receive(r io.Reader) (*iso8583.Message, error) {
@@ -62,7 +72,7 @@ func (b *BaseChannel) Receive(r io.Reader) (*iso8583.Message, error) {
 	return msg, nil
 }
 
-func (b *BaseChannel) Send(w io.Writer, msg *iso8583.Message) error {
+func (b *BaseChannel) Send(msg *iso8583.Message) error {
 	isoBytes, err := msg.Pack(b.Spec)
 	if err != nil {
 		return err
@@ -72,9 +82,22 @@ func (b *BaseChannel) Send(w io.Writer, msg *iso8583.Message) error {
 	finalPayload := isoBytes
 
 	// Write using the specialized length handler
-	if err := b.Handler.WriteLength(w, len(finalPayload)); err != nil {
+	if err := b.Handler.WriteLength(b.Conn, len(finalPayload)); err != nil {
 		return err
 	}
-	_, err = w.Write(finalPayload)
+	_, err = b.Conn.Write(finalPayload)
 	return err
+}
+
+func (b *BaseChannel) Clone(conn net.Conn) Channel {
+	if conn == nil {
+		// Log error?
+		panic("BaseChannel.Clone received nil conn")
+	}
+	return &BaseChannel{
+		Conn:    conn,
+		Spec:    b.Spec,
+		Header:  b.Header,
+		Handler: b.Handler,
+	}
 }
