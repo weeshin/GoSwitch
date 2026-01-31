@@ -5,6 +5,7 @@ import (
 	"io"
 	"log/slog"
 	"net"
+	"runtime/debug"
 )
 
 type HandleFunc func(*Context)
@@ -47,10 +48,13 @@ func (e *Engine) Start() error {
 
 func (e *Engine) serve(conn net.Conn) {
 	defer conn.Close()
+
+	sessionChannel := e.Channel.Clone(conn)
+
 	slog.Info("New connection", "remote_addr", conn.RemoteAddr())
 
 	for {
-		msg, err := e.Channel.Receive(conn)
+		msg, err := sessionChannel.Receive(conn)
 		if err != nil {
 			if err != io.EOF {
 				slog.Error("read error", "err", err)
@@ -60,18 +64,19 @@ func (e *Engine) serve(conn net.Conn) {
 		slog.Info("Received message", "MTI", msg.MTI, "fields", len(msg.Fields))
 
 		// Create Context
-		ctx := NewContext(conn, msg, e.Channel, e.Spec)
+		ctx := NewContext(msg, sessionChannel, e.Spec)
 
 		// Execute User Logic
 		if e.requestHandler != nil {
-			go func(c *Context) {
+			go func() {
 				defer func() {
 					if r := recover(); r != nil {
 						slog.Error("Panic in request handler", "reason", r)
+						debug.PrintStack()
 					}
 				}()
-				e.requestHandler(c)
-			}(ctx)
+				e.requestHandler(ctx)
+			}()
 		}
 	}
 }
