@@ -3,6 +3,7 @@ package server
 import (
 	"GoSwitch/pkg/iso8583"
 	"encoding/binary"
+	"fmt"
 	"io"
 	"net"
 )
@@ -27,11 +28,13 @@ func (h *NACHeader) WriteLength(w io.Writer, length int) error {
 // NACChannel: 2-byte binary length (Big Endian)
 type NACChannel struct {
 	// Some hosts expect a specific TPDU (e.g., 6000000000)
+	Conn net.Conn
 	*BaseChannel
 }
 
 func NewNACChannel(conn net.Conn, spec *iso8583.Spec) Channel {
 	return &NACChannel{
+		Conn: conn,
 		BaseChannel: &BaseChannel{
 			Conn:    conn,
 			Spec:    spec,
@@ -97,7 +100,11 @@ func (n *NACChannel) Receive(r io.Reader) (*iso8583.Message, error) {
 	return msg, nil
 }
 
-func (n *NACChannel) Send(w io.Writer, msg *iso8583.Message) error {
+func (n *NACChannel) Send(msg *iso8583.Message) error {
+	if n.Conn == nil {
+		return fmt.Errorf("NACChannel.Conn is nil")
+	}
+
 	// 1. Pack the ISO message to bytes
 	isoBytes, err := msg.Pack(n.Spec)
 	if err != nil {
@@ -121,13 +128,17 @@ func (n *NACChannel) Send(w io.Writer, msg *iso8583.Message) error {
 	lenHeader := make([]byte, 2)
 	binary.BigEndian.PutUint16(lenHeader, uint16(len(finalPayload)))
 
-	// if _, err := w.Write(lenHeader); err != nil {
-	// 	return err
-	// }
-	// _, err = w.Write(finalPayload)
-	if _, err := w.Write(lenHeader); err != nil {
+	if _, err := n.Conn.Write(lenHeader); err != nil {
 		return err
 	}
-	_, err = w.Write(finalPayload)
+	_, err = n.Conn.Write(finalPayload)
 	return err
+}
+
+func (n *NACChannel) Clone(conn net.Conn) Channel {
+	newBase := n.BaseChannel.Clone(conn).(*BaseChannel)
+	return &NACChannel{
+		Conn:        conn,
+		BaseChannel: newBase,
+	}
 }
