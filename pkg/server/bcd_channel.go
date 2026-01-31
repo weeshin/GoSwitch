@@ -9,10 +9,11 @@ import (
 // BCDChannel: 2-byte BCD length (e.g., 123 bytes = 0x01 0x23)
 type BCDChannel struct {
 	Spec *iso8583.Spec
+	Conn net.Conn
 }
 
 func NewBCDChannel(conn net.Conn, spec *iso8583.Spec) Channel {
-	return &BCDChannel{Spec: spec}
+	return &BCDChannel{Spec: spec, Conn: conn}
 }
 
 func init() {
@@ -55,15 +56,19 @@ func (b *BCDChannel) Receive(r io.Reader) (*iso8583.Message, error) {
 	return msg, nil
 }
 
-func (b *BCDChannel) Send(w io.Writer, msg *iso8583.Message) error {
+func (b *BCDChannel) Send(msg *iso8583.Message) error {
 	data, err := msg.Pack(b.Spec)
 	if err != nil {
 		return err
 	}
 
-	if err := b.WriteLength(w, len(data)); err != nil {
+	if err := b.WriteLength(b.Conn, len(data)); err != nil {
 		return err
 	}
-	_, err = w.Write(data)
+	_, err = b.Conn.Write(data)
 	return err
+}
+
+func (b *BCDChannel) Clone(conn net.Conn) Channel {
+	return &BCDChannel{Spec: b.Spec, Conn: conn}
 }
