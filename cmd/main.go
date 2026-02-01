@@ -325,12 +325,12 @@ func main() {
 	bankTPDU := []byte{0x60, 0x00, 0x01, 0x00, 0x00}
 
 	// Create NAC Channel with specific TPDU and Handler
-	nacChannel := server.NewNACChannel(nil, spec).(*server.NACChannel)
+	// nacChannel := server.NewNACChannel(nil, spec).(*server.NACChannel)
+	channel := server.NewBCDChannel(nil, spec).(*server.BCDChannel)
 	// Manually inject customization if not part of factory
-	nacChannel.Header = bankTPDU
+	channel.Header = bankTPDU
 
-	app := server.NewEngine(addr, spec, nacChannel)
-
+	app := server.NewEngine(addr, spec, channel)
 	// 3. Define your Logic (The app.Request handler)
 	app.Request(func(c *server.Context) {
 		// Define the combination key: MTI + Field 3

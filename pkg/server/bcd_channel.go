@@ -2,14 +2,16 @@ package server
 
 import (
 	"GoSwitch/pkg/iso8583"
+	"fmt"
 	"io"
 	"net"
 )
 
 // BCDChannel: 2-byte BCD length (e.g., 123 bytes = 0x01 0x23)
 type BCDChannel struct {
-	Spec *iso8583.Spec
-	Conn net.Conn
+	Spec   *iso8583.Spec
+	Conn   net.Conn
+	Header []byte
 }
 
 func NewBCDChannel(conn net.Conn, spec *iso8583.Spec) Channel {
@@ -40,35 +42,72 @@ func (b *BCDChannel) WriteLength(w io.Writer, length int) error {
 }
 
 func (b *BCDChannel) Receive(r io.Reader) (*iso8583.Message, error) {
-	length, err := b.ReadLength(r)
+	// 1. Read TCP Length
+	totalLen, err := b.ReadLength(r)
 	if err != nil {
 		return nil, err
 	}
-	payload := make([]byte, length)
+
+	// 2. Read Message Payload
+	payload := make([]byte, totalLen)
 	if _, err := io.ReadFull(r, payload); err != nil {
 		return nil, err
 	}
 
+	isoData := payload
+	var msgTPDU []byte
+
+	// 3. Handle TPDU if present
+	if len(b.Header) > 0 && totalLen >= 5 {
+		msgTPDU = payload[:5]
+		isoData = payload[5:]
+	}
+
 	msg := iso8583.NewMessage()
-	if err := msg.Unpack(payload, b.Spec); err != nil {
+	if err := msg.Unpack(isoData, b.Spec); err != nil {
 		return nil, err
 	}
+	msg.SetHeader(msgTPDU)
+
 	return msg, nil
 }
 
 func (b *BCDChannel) Send(msg *iso8583.Message) error {
-	data, err := msg.Pack(b.Spec)
+	if b.Conn == nil {
+		return fmt.Errorf("BCDChannel.Conn is nil")
+	}
+
+	// 1. Pack the ISO message to bytes
+	isoBytes, err := msg.Pack(b.Spec)
 	if err != nil {
 		return err
 	}
 
-	if err := b.WriteLength(b.Conn, len(data)); err != nil {
+	// 2. Handle TPDU (Swap Source/Dest if necessary)
+	finalPayload := isoBytes
+	if len(b.Header) > 0 {
+		tpdu := msg.GetHeader()
+		if len(tpdu) == 5 {
+			// Simple Swap: Swap bytes 1-2 with 3-4
+			swapped := []byte{tpdu[0], tpdu[3], tpdu[4], tpdu[1], tpdu[2]}
+			finalPayload = append(swapped, isoBytes...)
+		} else {
+			finalPayload = append(b.Header, isoBytes...)
+		}
+	}
+
+	// 3. Write TCP Length + Payload
+	if err := b.WriteLength(b.Conn, len(finalPayload)); err != nil {
 		return err
 	}
-	_, err = b.Conn.Write(data)
+	_, err = b.Conn.Write(finalPayload)
 	return err
 }
 
 func (b *BCDChannel) Clone(conn net.Conn) Channel {
-	return &BCDChannel{Spec: b.Spec, Conn: conn}
+	return &BCDChannel{
+		Spec:   b.Spec,
+		Conn:   conn,
+		Header: b.Header,
+	}
 }
