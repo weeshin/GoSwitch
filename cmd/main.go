@@ -325,13 +325,9 @@ func main() {
 	bankTPDU := []byte{0x60, 0x00, 0x01, 0x00, 0x00}
 
 	// Create NAC Channel with specific TPDU and Handler
-	nacChannel := &server.NACChannel{
-		BaseChannel: &server.BaseChannel{
-			Spec:    spec,
-			Header:  bankTPDU,
-			Handler: &server.NACHeader{},
-		},
-	}
+	nacChannel := server.NewNACChannel(nil, spec).(*server.NACChannel)
+	// Manually inject customization if not part of factory
+	nacChannel.Header = bankTPDU
 
 	app := server.NewEngine(addr, spec, nacChannel)
 
@@ -371,7 +367,9 @@ func handleEcho(c *server.Context) {
 		resp.Set(11, string(stan.Value))
 	}
 	resp.Set(39, "00") // Action Code: Approved
-	c.Send(resp)
+	if err := c.Send(resp); err != nil {
+		fmt.Printf("Error sending response: %v\n", err)
+	}
 }
 
 func handlePurchase(c *server.Context) {
@@ -382,5 +380,7 @@ func handlePurchase(c *server.Context) {
 	resp := c.Request
 	resp.Set(39, "00")
 	time.Sleep(1 * time.Second)
-	c.Send(resp)
+	if err := c.Send(resp); err != nil {
+		fmt.Printf("Error sending response: %v\n", err)
+	}
 }

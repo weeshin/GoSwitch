@@ -28,18 +28,15 @@ func (h *NACHeader) WriteLength(w io.Writer, length int) error {
 // NACChannel: 2-byte binary length (Big Endian)
 type NACChannel struct {
 	// Some hosts expect a specific TPDU (e.g., 6000000000)
-	Conn net.Conn
-	*BaseChannel
+	Conn   net.Conn
+	Spec   *iso8583.Spec
+	Header []byte
 }
 
 func NewNACChannel(conn net.Conn, spec *iso8583.Spec) Channel {
 	return &NACChannel{
 		Conn: conn,
-		BaseChannel: &BaseChannel{
-			Conn:    conn,
-			Spec:    spec,
-			Handler: &NACHeader{},
-		},
+		Spec: spec,
 	}
 }
 
@@ -136,9 +133,9 @@ func (n *NACChannel) Send(msg *iso8583.Message) error {
 }
 
 func (n *NACChannel) Clone(conn net.Conn) Channel {
-	newBase := n.BaseChannel.Clone(conn).(*BaseChannel)
 	return &NACChannel{
-		Conn:        conn,
-		BaseChannel: newBase,
+		Conn:   conn,
+		Spec:   n.Spec,
+		Header: n.Header,
 	}
 }
