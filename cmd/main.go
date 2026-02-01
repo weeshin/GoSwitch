@@ -326,7 +326,7 @@ func main() {
 
 	// Create NAC Channel with specific TPDU and Handler
 	// nacChannel := server.NewNACChannel(nil, spec).(*server.NACChannel)
-	channel := server.NewBCDChannel(nil, spec).(*server.BCDChannel)
+	channel := server.NewNCCChannel(nil, spec).(*server.NCCChannel)
 	// Manually inject customization if not part of factory
 	channel.Header = bankTPDU
 
