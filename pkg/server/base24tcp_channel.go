@@ -12,7 +12,7 @@ import (
 type BASE24TCPChannel struct {
 	Conn   net.Conn
 	Spec   *iso8583.Spec
-	Header []byte // Used for TPDU if needed
+	Header []byte // Generic header (e.g., 10-byte ASCII)
 }
 
 func NewBASE24TCPChannel(conn net.Conn, spec *iso8583.Spec) Channel {
@@ -76,13 +76,24 @@ func (b *BASE24TCPChannel) Receive(r io.Reader) (*iso8583.Message, error) {
 		return nil, err
 	}
 
+	isoData := payload
+	var msgHeader []byte
+	// 4. Handle Header (General Header, e.g., 10 bytes)
+	// If we expect a header, we extract it from the front
+	if len(b.Header) > 0 && msgLen >= len(b.Header) {
+		hLen := len(b.Header)
+		msgHeader = payload[:hLen]
+		isoData = payload[hLen:]
+	}
+
 	// 4. Unpack
 	msg := iso8583.NewMessage()
 	// Note: BASE24 often doesn't use a TPDU in this specific TCP variant,
 	// but we'll unpack the whole payload.
-	if err := msg.Unpack(payload, b.Spec); err != nil {
+	if err := msg.Unpack(isoData, b.Spec); err != nil {
 		return nil, err
 	}
+	msg.SetHeader(msgHeader)
 
 	return msg, nil
 }
@@ -97,22 +108,31 @@ func (b *BASE24TCPChannel) Send(msg *iso8583.Message) error {
 		return err
 	}
 
-	// 1. Write Length Header (isoBytes length + 1)
-	if err := b.WriteLength(b.Conn, len(isoBytes)); err != nil {
+	// 1. Prepare Header
+	h := msg.GetHeader()
+	if h == nil {
+		h = b.Header
+	}
+
+	// 2. Combine Header + ISO Body
+	finalPayload := isoBytes
+	if h != nil {
+		finalPayload = append(h, isoBytes...)
+	}
+
+	// 3. Write Length (Total + 1)
+	if err := b.WriteLength(b.Conn, len(finalPayload)); err != nil {
 		return err
 	}
 
-	// 2. Write ISO Message body
-	if _, err := b.Conn.Write(isoBytes); err != nil {
+	// 4. Write Data
+	if _, err := b.Conn.Write(finalPayload); err != nil {
 		return err
 	}
 
-	// 3. Write Trailer byte (0x03)
-	if _, err := b.Conn.Write([]byte{0x03}); err != nil {
-		return err
-	}
-
-	return nil
+	// 5. Write Trailer (ETX 0x03)
+	_, err = b.Conn.Write([]byte{0x03})
+	return err
 }
 
 func (b *BASE24TCPChannel) Clone(conn net.Conn) Channel {
