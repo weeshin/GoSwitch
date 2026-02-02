@@ -2,6 +2,7 @@ package server
 
 import (
 	"GoSwitch/pkg/iso8583"
+	"fmt"
 	"io"
 	"log/slog"
 	"net"
@@ -61,7 +62,7 @@ func (e *Engine) serve(conn net.Conn) {
 			}
 			break
 		}
-		slog.Info("Received message", "MTI", msg.MTI, "fields", len(msg.Fields))
+		slog.Info(fmt.Sprintf("Incoming: %s", msg.LogString()))
 
 		// Create Context
 		ctx := NewContext(msg, sessionChannel, e.Spec)
