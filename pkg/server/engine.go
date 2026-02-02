@@ -7,7 +7,6 @@ import (
 	"log/slog"
 	"net"
 	"os"
-	"runtime/debug"
 )
 
 type HandleFunc func(*Context)
@@ -17,6 +16,7 @@ type Engine struct {
 	Spec           *iso8583.Spec
 	Channel        Channel
 	requestHandler HandleFunc
+	slog           *slog.Logger
 }
 
 func NewEngine(addr string, spec *iso8583.Spec, channel Channel) *Engine {
@@ -36,6 +36,7 @@ func NewEngine(addr string, spec *iso8583.Spec, channel Channel) *Engine {
 		Addr:    addr,
 		Spec:    spec,
 		Channel: channel,
+		slog:    logger,
 	}
 }
 
@@ -48,7 +49,7 @@ func (e *Engine) Start() error {
 	if err != nil {
 		return err
 	}
-	slog.Info("GoSwitch Framework listening", "addr", e.Addr)
+	e.slog.Info("GoSwitch Framework listening", "addr", e.Addr)
 
 	for {
 		conn, err := ln.Accept()
@@ -64,29 +65,27 @@ func (e *Engine) serve(conn net.Conn) {
 	defer conn.Close()
 
 	sessionChannel := e.Channel.Clone(conn)
-
-	slog.Info("New connection", "remote_addr", conn.RemoteAddr())
+	l := e.slog.With("remote_addr", conn.RemoteAddr())
+	l.Info("New connection")
 
 	for {
 		msg, err := sessionChannel.Receive(conn)
 		if err != nil {
 			if err != io.EOF {
-				slog.Error("read error", "err", err)
+				l.Error("read error", "err", err)
 			}
 			break
 		}
-		slog.Info(fmt.Sprintf("Incoming: %s", msg.LogString()))
-
+		l.Info(fmt.Sprintf("Incoming: %s", msg.LogString()))
 		// Create Context
-		ctx := NewContext(msg, sessionChannel, e.Spec)
+		ctx := NewContext(msg, sessionChannel, e.Spec, l)
 
 		// Execute User Logic
 		if e.requestHandler != nil {
 			go func() {
 				defer func() {
 					if r := recover(); r != nil {
-						slog.Error("Panic in request handler", "reason", r)
-						debug.PrintStack()
+						l.Error("Panic in request handler", "reason", r)
 					}
 				}()
 				e.requestHandler(ctx)

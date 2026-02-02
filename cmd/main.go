@@ -368,19 +368,19 @@ func handleEcho(c *server.Context) {
 	}
 	resp.Set(39, "00") // Action Code: Approved
 	if err := c.Send(resp); err != nil {
-		fmt.Printf("Error sending response: %v\n", err)
+		c.Slog.Error("Error sending response", "error", err)
 	}
 }
 
 func handlePurchase(c *server.Context) {
 	// Implement your database or authorization logic here
-	fmt.Println("Processing Purchase...")
+	c.Slog.Info("Processing Purchase...")
 
 	c.Request.ResponseMTI()
 	resp := c.Request
 	resp.Set(39, "00")
 	time.Sleep(1 * time.Second)
 	if err := c.Send(resp); err != nil {
-		fmt.Printf("Error sending response: %v\n", err)
+		c.Slog.Error("Error sending response", "error", err)
 	}
 }
