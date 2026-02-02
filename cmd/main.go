@@ -7,6 +7,7 @@ import (
 	"GoSwitch/pkg/server"
 	"fmt"
 	"log"
+	"log/slog"
 	"time"
 )
 
@@ -322,13 +323,12 @@ func main() {
 	}
 	addr := fmt.Sprintf("%s:%d", appCfg.Server.IP, appCfg.Server.Port)
 	// Example TPDU for a specific bank: 60 00 01 00 00
-	bankTPDU := []byte{0x60, 0x00, 0x01, 0x00, 0x00}
+	// bankTPDU := []byte{0x60, 0x00, 0x01, 0x00, 0x00}
 
-	// Create NAC Channel with specific TPDU and Handler
-	// nacChannel := server.NewNACChannel(nil, spec).(*server.NACChannel)
-	channel := server.NewNCCChannel(nil, spec).(*server.NCCChannel)
+	// Create BASE24TCP Channel with specific TPDU and Handler
+	channel := server.NewBASE24TCPChannel(nil, spec).(*server.BASE24TCPChannel)
 	// Manually inject customization if not part of factory
-	channel.Header = bankTPDU
+	// channel.Header = bankTPDU
 
 	app := server.NewEngine(addr, spec, channel)
 	// 3. Define your Logic (The app.Request handler)
@@ -341,7 +341,7 @@ func main() {
 		}
 
 		key := fmt.Sprintf("%s_%s", mti, procCode)
-		fmt.Printf("--> Handling Transaction: [%s]\n", key)
+		slog.Debug(fmt.Sprintf("--> Handling Transaction: [%s]", key))
 
 		switch key {
 		case "0800_": // Network Echo
@@ -349,7 +349,7 @@ func main() {
 		case "0200_000000": // Purchase
 			handlePurchase(c)
 		default:
-			fmt.Printf("No specific handler for %s\n", key)
+			slog.Debug(fmt.Sprintf("No specific handler for %s", key))
 		}
 	})
 
