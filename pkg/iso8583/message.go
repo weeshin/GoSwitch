@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"fmt"
 	"log/slog"
+	"sort"
+	"strings"
 )
 
 // Field represents a single ISO 8583 data element
@@ -63,6 +65,27 @@ func (m *Message) ResponseMTI() error {
 	}
 	m.MTI = string(mti)
 	return nil
+}
+
+// LogString formats the message fields for logging
+// Format: F0: 0200, F2: 000000001000, F39: 00
+func (m *Message) LogString() string {
+	var sb strings.Builder
+	sb.WriteString(fmt.Sprintf("F0: %s", m.MTI))
+
+	// Sort keys to ensure consistent order
+	var keys []int
+	for k := range m.Fields {
+		keys = append(keys, k)
+	}
+	sort.Ints(keys)
+
+	for _, k := range keys {
+		if val := m.Fields[k]; val != nil {
+			sb.WriteString(fmt.Sprintf(", F%d: %s", k, string(val.Value)))
+		}
+	}
+	return sb.String()
 }
 
 // GenerateBitmapHex constructs the binary bitmap (8 or 16 bytes)
