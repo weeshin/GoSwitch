@@ -2,6 +2,8 @@ package server
 
 import (
 	"GoSwitch/pkg/iso8583"
+	"fmt"
+	"log/slog"
 )
 
 type Context struct {
@@ -20,5 +22,6 @@ func NewContext(request *iso8583.Message, channel Channel, spec *iso8583.Spec) *
 
 // Send packs the message and sends it back using the configured channel
 func (c *Context) Send(msg *iso8583.Message) error {
+	slog.Info(fmt.Sprintf("Outgoing: %s", msg.LogString()))
 	return c.Channel.Send(msg)
 }
