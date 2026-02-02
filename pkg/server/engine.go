@@ -6,6 +6,7 @@ import (
 	"io"
 	"log/slog"
 	"net"
+	"os"
 	"runtime/debug"
 )
 
@@ -19,6 +20,18 @@ type Engine struct {
 }
 
 func NewEngine(addr string, spec *iso8583.Spec, channel Channel) *Engine {
+	opts := &slog.HandlerOptions{
+		ReplaceAttr: func(groups []string, a slog.Attr) slog.Attr {
+			if a.Key == slog.TimeKey {
+				// Custom time format with milliseconds
+				return slog.String(slog.TimeKey, a.Value.Time().Format("2006-01-02 15:04:05.000"))
+			}
+			return a
+		},
+	}
+	logger := slog.New(slog.NewTextHandler(os.Stdout, opts))
+	slog.SetDefault(logger)
+
 	return &Engine{
 		Addr:    addr,
 		Spec:    spec,
