@@ -32,6 +32,15 @@ func (m *Message) Set(fieldNum int, value string) {
 	m.Fields[fieldNum] = &Field{Value: []byte(value)}
 }
 
+// Get retrieves a field's value from the message
+func (m *Message) Get(fieldNum int) (string, bool) {
+	field, exists := m.Fields[fieldNum]
+	if !exists {
+		return "", false
+	}
+	return string(field.Value), true
+}
+
 // Unset removes a field from the message
 func (m *Message) Unset(fieldNum int) {
 	delete(m.Fields, fieldNum)
