@@ -33,12 +33,12 @@ func (m *Message) Set(fieldNum int, value string) {
 }
 
 // Get retrieves a field's value from the message
-func (m *Message) Get(fieldNum int) (string, bool) {
+func (m *Message) Get(fieldNum int) string {
 	field, exists := m.Fields[fieldNum]
 	if !exists {
-		return "", false
+		return ""
 	}
-	return string(field.Value), true
+	return string(field.Value)
 }
 
 // Unset removes a field from the message

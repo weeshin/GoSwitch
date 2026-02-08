@@ -11,14 +11,16 @@ type Context struct {
 	Channel Channel
 	Spec    *iso8583.Spec
 	Slog    *slog.Logger
+	Engine  *Engine
 }
 
-func NewContext(request *iso8583.Message, channel Channel, spec *iso8583.Spec, logger *slog.Logger) *Context {
+func NewContext(request *iso8583.Message, channel Channel, spec *iso8583.Spec, logger *slog.Logger, engine *Engine) *Context {
 	return &Context{
 		Request: request,
 		Channel: channel,
 		Spec:    spec,
 		Slog:    logger,
+		Engine:  engine,
 	}
 }
 

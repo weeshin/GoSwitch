@@ -326,7 +326,8 @@ func main() {
 	// bankTPDU := []byte{0x60, 0x00, 0x01, 0x00, 0x00}
 
 	// Create BASE24TCP Channel with specific TPDU and Handler
-	channel := server.NewBASE24TCPChannel(nil, spec).(*server.BASE24TCPChannel)
+	// channel := server.NewBASE24TCPChannel(nil, spec).(*server.BASE24TCPChannel)
+	channel := server.NewNACChannel(nil, spec).(*server.NACChannel)
 	// Manually inject customization if not part of factory
 	// channel.Header = bankTPDU
 
@@ -353,6 +354,8 @@ func main() {
 		}
 	})
 
+	app.Connect("sim1", "localhost:9999")
+
 	if err := app.Start(); err != nil {
 		log.Fatal(err)
 	}
@@ -376,10 +379,17 @@ func handlePurchase(c *server.Context) {
 	// Implement your database or authorization logic here
 	c.Slog.Info("Processing Purchase...")
 
+	queryResp, err := c.Engine.SendAndReceive("sim1", c.Request, 15*time.Second)
+	if err != nil {
+		c.Slog.Error("Error in SendAndReceive", "error", err)
+		return
+	}
+	c.Slog.Info("Received response from peer", "response", queryResp.LogString())
+
 	c.Request.ResponseMTI()
 	resp := c.Request
-	resp.Set(39, "00")
-	time.Sleep(1 * time.Second)
+	resp.Set(39, queryResp.Get(39))
+	// time.Sleep(1 * time.Second)
 	if err := c.Send(resp); err != nil {
 		c.Slog.Error("Error sending response", "error", err)
 	}
